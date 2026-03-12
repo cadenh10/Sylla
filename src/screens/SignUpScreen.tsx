@@ -3,29 +3,14 @@
  * Includes email verification messaging, resend cooldown, and university autocomplete.
  */
 import React, { useEffect, useRef, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  FlatList,
-  ActivityIndicator,
-  TouchableOpacity,
-} from 'react-native';
+import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
+import { UniversitySearchInput } from '../components/UniversitySearchInput';
 import { useAuthStore } from '../store/authStore';
 import type { AuthStackParamList } from '../navigation/types';
 import { supabase } from '../services/supabase';
-
-// Hipolabs university search API result (simplified)
-interface UniversityResult {
-  name: string;
-}
 
 // Map Supabase auth error messages to friendlier variants
 const mapAuthErrorMessage = (message: string): string => {
@@ -48,12 +33,7 @@ export function SignUpScreen({ navigation }: Props) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
-  const [schoolQuery, setSchoolQuery] = useState('');
-  const [selectedSchool, setSelectedSchool] = useState<string | null>(null);
-  const [universities, setUniversities] = useState<UniversityResult[]>([]);
-  const [isUniversityLoading, setIsUniversityLoading] = useState(false);
-  const [showUniversityDropdown, setShowUniversityDropdown] = useState(false);
-  const debounceRef = useRef<NodeJS.Timeout | null>(null);
+  const [university, setUniversity] = useState('');
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
@@ -83,59 +63,14 @@ export function SignUpScreen({ navigation }: Props) {
     }, 1000);
   };
 
-  // Clean up timers when screen unmounts
+  // Clean up resend cooldown timer on unmount
   useEffect(() => {
     return () => {
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current);
-      }
       if (resendIntervalRef.current) {
         clearInterval(resendIntervalRef.current);
       }
     };
   }, []);
-
-  // Handle text changes for the university search input with a manual debounce
-  const handleUniversityQueryChange = (text: string) => {
-    setSchoolQuery(text);
-    setSelectedSchool(null);
-    setErrorMessage(null);
-
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-    }
-
-    const trimmed = text.trim();
-    if (trimmed.length < 2) {
-      setUniversities([]);
-      setShowUniversityDropdown(false);
-      return;
-    }
-
-    debounceRef.current = setTimeout(async () => {
-      setIsUniversityLoading(true);
-      try {
-        // Use HTTPS so requests work reliably on devices
-        const response = await fetch(
-          `https://universities.hipolabs.com/search?name=${encodeURIComponent(trimmed)}&country=United%20States`,
-        );
-        const data: UniversityResult[] = await response.json();
-        setUniversities(data);
-        setShowUniversityDropdown(true);
-      } catch {
-        setUniversities([]);
-        setShowUniversityDropdown(true);
-      } finally {
-        setIsUniversityLoading(false);
-      }
-    }, 300);
-  };
-
-  const handleSelectUniversity = (university: UniversityResult) => {
-    setSelectedSchool(university.name);
-    setSchoolQuery(university.name);
-    setShowUniversityDropdown(false);
-  };
 
   const handleSignUp = async () => {
     setErrorMessage(null);
@@ -150,7 +85,7 @@ export function SignUpScreen({ navigation }: Props) {
       return;
     }
 
-    const schoolValue = selectedSchool ?? (schoolQuery.trim() || undefined);
+    const schoolValue = university.trim() || undefined;
     const { error } = await signUp(email.trim(), password, username.trim(), schoolValue);
     if (error) {
       setErrorMessage(mapAuthErrorMessage(error.message));
@@ -232,45 +167,7 @@ export function SignUpScreen({ navigation }: Props) {
           placeholder="studybuddy"
           autoCapitalize="none"
         />
-        <View style={styles.universityContainer}>
-          <Input
-            label="University (optional)"
-            value={schoolQuery}
-            onChangeText={handleUniversityQueryChange}
-            placeholder="Search universities in the US"
-          />
-          {isUniversityLoading && (
-            <View style={styles.universityLoading}>
-              <ActivityIndicator size="small" color="#6366f1" />
-            </View>
-          )}
-
-          {showUniversityDropdown && (
-            <View style={styles.universityDropdown}>
-              {universities.length === 0 && !isUniversityLoading ? (
-                <Text style={styles.universityEmpty}>No universities found</Text>
-              ) : (
-                // Use a simple mapped list instead of FlatList here
-                // to avoid nested VirtualizedList warnings inside ScrollView.
-                universities.map((item, index) => (
-                  <TouchableOpacity
-                    key={`${item.name}-${index}`}
-                    style={styles.universityItem}
-                    onPress={() => handleSelectUniversity(item)}
-                  >
-                    <Ionicons
-                      name="school-outline"
-                      size={18}
-                      color="#4b5563"
-                      style={styles.universityIcon}
-                    />
-                    <Text style={styles.universityName}>{item.name}</Text>
-                  </TouchableOpacity>
-                ))
-              )}
-            </View>
-          )}
-        </View>
+        <UniversitySearchInput value={university} onSelect={setUniversity} error={undefined} />
 
         <View style={styles.resendRow}>
           <Button title="Sign Up" onPress={handleSignUp} loading={isLoading} />
@@ -341,52 +238,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#64748b',
     marginBottom: 32,
-  },
-  universityContainer: {
-    position: 'relative',
-    marginBottom: 16,
-  },
-  universityLoading: {
-    position: 'absolute',
-    right: 16,
-    top: 40,
-  },
-  universityDropdown: {
-    position: 'absolute',
-    top: 80,
-    left: 0,
-    right: 0,
-    maxHeight: 220,
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    elevation: 6,
-    zIndex: 20,
-    paddingVertical: 4,
-  },
-  universityItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  universityIcon: {
-    marginRight: 8,
-  },
-  universityName: {
-    fontSize: 14,
-    color: '#0f172a',
-  },
-  universityEmpty: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
-    color: '#64748b',
   },
   resendRow: {
     marginBottom: 12,

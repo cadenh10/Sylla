@@ -1,0 +1,4 @@
+{"sessionId":"8539ac","location":"SignUpScreen:handleSignUp:before","message":"About to call signUp","data":{"emailPrefix":"clh***"},"hypothesisId":"H1","timestamp":1773329292350}
+{"sessionId":"8539ac","location":"authStore.ts:signUp:before","message":"signUp called","data":{"email":"clh***","hasPassword":true,"username":"cadenlho"},"hypothesisId":"H1","timestamp":1773329292352}
+{"sessionId":"8539ac","location":"authStore.ts:signUp:after","message":"Supabase signUp response","data":{"hasError":false,"hasUser":true,"userId":"98ad0d2c-7641-41de-866d-4d500ff2f87b","hasSession":false,"identitiesLen":0},"hypothesisId":"H2,H3,H4,H5","timestamp":1773329292633}
+{"sessionId":"8539ac","location":"SignUpScreen:handleSignUp:after","message":"signUp returned","data":{"hasError":false},"hypothesisId":"H2","timestamp":1773329292644}

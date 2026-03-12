@@ -68,3 +68,12 @@ src/
 - `study_sessions`: id, user_id, subject, duration_minutes, location, created_at
 
 Run `supabase/schema.sql` in your Supabase project to create tables and RLS policies.
+
+## Troubleshooting: No verification emails
+
+Supabase sends verification emails based on your project settings. If signup succeeds but no email arrives:
+
+1. **Confirm email setting** – In Supabase: **Authentication → Providers → Email** → ensure **Confirm email** is enabled.
+2. **Built-in email limits** – Supabase’s default sender has low rate limits and is for testing only. Use **Authentication → Email Templates** and configure **Custom SMTP** (e.g. Resend, SendGrid, Mailgun) for reliable delivery.
+3. **Check spam** – Verify the spam folder for the signup address.
+4. **Auth logs** – In Supabase: **Authentication → Logs** to see if emails were attempted and any errors.
